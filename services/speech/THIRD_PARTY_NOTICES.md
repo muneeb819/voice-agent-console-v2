@@ -8,6 +8,7 @@ When installing or redistributing a complete deployment, collect the actual lice
 |---|---|---|
 | faster-whisper | https://github.com/SYSTRAN/faster-whisper | MIT runtime; review CTranslate2 and other dependencies. |
 | Whisper large-v3-turbo | https://huggingface.co/openai/whisper-large-v3-turbo | MIT at checked revision. |
+| faster-whisper `large-v3-turbo` weights actually downloaded | https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo | Third-party CTranslate2 conversion of the model above (V2 finding, 2026-11-22). Verify this repo's licence before production. |
 | Kokoro inference | https://github.com/hexgrad/kokoro | Apache-2.0; review bundled dependencies separately. |
 | Kokoro weights | https://huggingface.co/hexgrad/Kokoro-82M | Apache-2.0 at checked revision; preserve required notices and attribution. |
 | Misaki | https://github.com/hexgrad/misaki | Apache-2.0 project; check lexicon/data and optional dependency terms. |

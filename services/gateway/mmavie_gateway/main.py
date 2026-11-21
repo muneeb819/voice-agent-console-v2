@@ -1,11 +1,11 @@
 """MMA AI Gateway — the single internal entry point to all MMA-VIE inference.
 
-Phase 1 scope:
+Routes:
   * authenticated, OpenAI-compatible LLM routing (/v1/chat/completions, streaming and not)
   * alias -> upstream replicas from a validated route table (internal upstreams only)
   * active health probing, failover before the first byte, per-upstream load shedding
   * readiness = every route has at least one healthy upstream
-STT/TTS proxying (WebSocket) is added in Phase 2; their upstreams are already health-tracked.
+  * speech: WebSocket STT/TTS relay and one-shot TTS (see speech.py, added in Phase 2)
 """
 from __future__ import annotations
 
@@ -19,13 +19,15 @@ from pathlib import Path
 
 import httpx
 from fastapi import Depends, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from prometheus_client import Counter, Gauge
 
 from mmavie_common.app import CheckResult, create_service_app
 from mmavie_common.auth import make_auth_dependency
 from mmavie_common.contracts.routing import Route, RouteTable, Upstream
 from mmavie_common.settings import ConfigError, ServiceSettings
+
+from .speech import register_speech_routes
 
 log = logging.getLogger("mmavie.gateway")
 
@@ -139,29 +141,20 @@ def build_app(settings: Settings | None = None, *, routes: RouteTable | None = N
                      "in_flight": u.up.max_concurrency - u.sem._value} for u in s.upstreams]
                 for a, s in states.items()}
 
-    @app.post("/v1/chat/completions")
-    async def chat(request: Request, caller: str = Depends(auth)):
-        try:
-            body = await request.json()
-        except json.JSONDecodeError as exc:
-            raise HTTPException(400, "body must be JSON") from exc
-        alias = body.get("model") if isinstance(body, dict) else None
-        state = states.get(alias) if isinstance(alias, str) else None
-        if state is None or state.route.kind != "llm":
-            raise HTTPException(404, f"unknown LLM model alias '{alias}'")
-        upstream_body = {**body, "model": state.route.upstream_model}
-        stream = bool(body.get("stream"))
+    async def forward_http(request: Request, state: RouteState, path: str, upstream_body: dict,
+                           caller: str, stream: bool) -> Response:
+        """POST to a healthy upstream for the route; fail over before the first byte; shed when full."""
+        alias = state.route.alias
         client: httpx.AsyncClient = request.app.state.http
         last_error = "no upstream available"
         all_busy = True
-
         for us in state.candidates():
             if us.sem.locked():
                 continue
             all_busy = False
             await us.sem.acquire()
             try:
-                req = client.build_request("POST", f"{us.up.url}/v1/chat/completions", json=upstream_body,
+                req = client.build_request("POST", f"{us.up.url}{path}", json=upstream_body,
                                            headers={**us.headers(), "x-request-id": request.headers.get("x-request-id", ""),
                                                     "x-mmavie-caller": caller})
                 resp = await client.send(req, stream=True)
@@ -177,13 +170,14 @@ def build_app(settings: Settings | None = None, *, routes: RouteTable | None = N
                 failovers.labels(alias).inc()
                 last_error = f"upstream status {resp.status_code}"
                 continue
+            media_type = resp.headers.get("content-type", "application/octet-stream")
             if not stream:
                 try:
                     content = await resp.aread()
                 finally:
                     await resp.aclose()
                     us.sem.release()
-                return JSONResponse(json.loads(content) if content else {}, status_code=resp.status_code)
+                return Response(content, status_code=resp.status_code, media_type=media_type)
 
             async def relay(resp=resp, us=us):
                 try:
@@ -193,14 +187,29 @@ def build_app(settings: Settings | None = None, *, routes: RouteTable | None = N
                     await resp.aclose()
                     us.sem.release()
 
-            return StreamingResponse(relay(), status_code=resp.status_code,
-                                     media_type=resp.headers.get("content-type", "text/event-stream"))
+            return StreamingResponse(relay(), status_code=resp.status_code, media_type=media_type)
 
         if all_busy:
             shed.labels(alias).inc()
             return JSONResponse({"detail": f"all upstreams for '{alias}' are at capacity"}, status_code=503,
                                 headers={"Retry-After": "1"})
         raise HTTPException(502, f"all upstreams for '{alias}' failed: {last_error}")
+
+    @app.post("/v1/chat/completions")
+    async def chat(request: Request, caller: str = Depends(auth)):
+        try:
+            body = await request.json()
+        except json.JSONDecodeError as exc:
+            raise HTTPException(400, "body must be JSON") from exc
+        alias = body.get("model") if isinstance(body, dict) else None
+        state = states.get(alias) if isinstance(alias, str) else None
+        if state is None or state.route.kind != "llm":
+            raise HTTPException(404, f"unknown LLM model alias '{alias}'")
+        return await forward_http(request, state, "/v1/chat/completions",
+                                  {**body, "model": state.route.upstream_model}, caller, bool(body.get("stream")))
+
+    register_speech_routes(app, settings=settings, states=states, failovers=failovers,
+                           forward_http=forward_http, auth=auth)
 
     return app
 

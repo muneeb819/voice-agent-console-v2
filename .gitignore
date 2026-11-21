@@ -11,3 +11,8 @@ __pycache__/
 *.wav
 *.sqlite*
 /data/
+
+# Benchmark artefacts: generated test audio is never committed; real-run results are
+# committed deliberately with `git add -f bench/results/<run_id>-*.json`.
+bench/testsets/
+bench/results/

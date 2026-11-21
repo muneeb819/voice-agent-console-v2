@@ -1,0 +1,27 @@
+# Original test sentences in the style of outbound qualification calls (no real people or claims).
+# Used for TTS latency and for the synthetic STT round-trip set. One sentence per line.
+Hi, this is Jessie calling from Example Services. How are you doing today?
+I'm doing well, thanks for asking. Who did you say you were with?
+I'm calling about the information you requested online last week.
+Do you have a quick minute to go over a few questions?
+Sure, go ahead, but I only have about five minutes.
+Can I confirm that you're between fifty and eighty five years old?
+Yes, I turned seventy two in March.
+Are you currently covered by Medicare Part A or Part B?
+I have Part A and Part B through my late husband's plan.
+Would you like me to connect you with a licensed specialist now?
+No thank you, please take me off your list.
+I understand. I'll make sure you don't receive any more calls from us.
+Can you call me back tomorrow afternoon around three o'clock?
+What's the best number to reach you at?
+It's five five five, two one two, four four nine eight.
+Hold on, my dog is barking, give me one second.
+I'm sorry, could you repeat that a little slower?
+Are you a real person or a recording?
+I'm an automated assistant, and I can connect you to a person at any time.
+That sounds fine. Go ahead and transfer me.
+Great, please stay on the line while I connect you.
+I already have a policy and I'm happy with it.
+How much would something like this cost per month?
+A specialist can go over the exact options and pricing with you.
+Thank you for your time today, and have a wonderful afternoon.

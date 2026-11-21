@@ -5,7 +5,7 @@ DB ?= postgresql://postgres@127.0.0.1:5432/mmavie
 .PHONY: install lint test test-speech up down smoke local local-stop migrate
 
 install:            ## install shared kit + dev tools into the current environment
-	$(PY) -m pip install -e packages/mmavie-common "psycopg[binary]==3.2.3" pytest anyio ruff
+	$(PY) -m pip install -e packages/mmavie-common "psycopg[binary]==3.2.3" pytest anyio ruff numpy soundfile soxr
 	$(PY) -m pip install -r services/speech/requirements-test.txt
 
 lint:
