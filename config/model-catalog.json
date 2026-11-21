@@ -1,0 +1,29 @@
+{
+  "_comment": "Models MMA-VIE may deploy. Revisions are resolved and pinned by scripts/register_models.py on a host that can reach Hugging Face, then recorded in the Model Registry. licence_verified=false means a person must read the model card before the model is approved for production.",
+  "models": [
+    {
+      "kind": "stt",
+      "name": "faster-whisper-large-v3-turbo",
+      "hf_repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+      "licence": "MIT (upstream openai/whisper-large-v3-turbo); CTranslate2 conversion by a third party",
+      "licence_verified": false,
+      "notes": "This is the repo faster-whisper 1.2.1 downloads for 'large-v3-turbo'. Confirm the conversion repo's own licence on its model card."
+    },
+    {
+      "kind": "tts",
+      "name": "kokoro-82m",
+      "hf_repo": "hexgrad/Kokoro-82M",
+      "licence": "Apache-2.0",
+      "licence_verified": false,
+      "notes": "Requires espeak-ng (GPL) as a separate system binary; keep notices."
+    },
+    {
+      "kind": "clone",
+      "name": "chatterbox-turbo",
+      "hf_repo": "ResembleAI/chatterbox-turbo",
+      "licence": "MIT; Perth watermark stays enabled",
+      "licence_verified": false,
+      "notes": "Consent record required per cloned voice (voice_consents table)."
+    }
+  ]
+}

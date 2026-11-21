@@ -1,0 +1,22 @@
+{
+  "routes": [
+    {
+      "alias": "qwen3-voice",
+      "kind": "llm",
+      "upstream_model": "fake-llm",
+      "upstreams": [{ "url": "http://llm-fake:8000", "token_env": "LLM_UPSTREAM_TOKEN", "max_concurrency": 64 }]
+    },
+    {
+      "alias": "whisper-large-v3-turbo",
+      "kind": "stt",
+      "upstream_model": "large-v3-turbo",
+      "upstreams": [{ "url": "http://speech:8000", "token_env": "SPEECH_UPSTREAM_TOKEN", "max_concurrency": 16 }]
+    },
+    {
+      "alias": "kokoro-82m",
+      "kind": "tts",
+      "upstream_model": "kokoro",
+      "upstreams": [{ "url": "http://speech:8000", "token_env": "SPEECH_UPSTREAM_TOKEN", "max_concurrency": 16 }]
+    }
+  ]
+}

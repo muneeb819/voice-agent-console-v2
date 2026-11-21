@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.run/
+.env
+.env.*
+!.env.example
+*.wav
+*.sqlite*
+/data/
+
+# Benchmark artefacts: generated test audio is never committed; real-run results are
+# committed deliberately with `git add -f bench/results/<run_id>-*.json`.
+bench/testsets/
+bench/results/
