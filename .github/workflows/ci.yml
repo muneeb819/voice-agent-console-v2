@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: pip install -e packages/mmavie-common "psycopg[binary]==3.2.3" pytest anyio ruff numpy
+        run: pip install -e packages/mmavie-common "psycopg[binary]==3.2.3" pytest anyio ruff numpy huggingface_hub
       - name: Lint
         run: ruff check .
       - name: Tests (contracts, services, real Postgres migrations)

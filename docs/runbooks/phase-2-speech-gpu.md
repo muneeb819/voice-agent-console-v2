@@ -32,7 +32,11 @@ export REGISTRY_URL=http://<cpu-host-private-ip>:8003 REGISTRY_TOKEN=<from mmavi
 python scripts/register_models.py --only stt,tts --download
 ```
 
-Record the two revision hashes it prints in the run notes. **Before production:** read each model card and confirm the licence; the catalog marks them unverified until a person does. In particular, faster-whisper's `large-v3-turbo` is a third-party CTranslate2 conversion (`mobiuslabsgmbh/faster-whisper-large-v3-turbo`) of OpenAI's MIT-licensed model.
+Record the two revision hashes it prints in the run notes. `--download` also points the cache's `main` at each pinned commit, which is what the engines load by name. Verify before starting the engine (must print `OK` for both):
+
+```bash
+python scripts/register_models.py --only stt,tts --check
+``` **Before production:** read each model card and confirm the licence; the catalog marks them unverified until a person does. In particular, faster-whisper's `large-v3-turbo` is a third-party CTranslate2 conversion (`mobiuslabsgmbh/faster-whisper-large-v3-turbo`) of OpenAI's MIT-licensed model.
 
 ## 4. Start the Speech Engine offline
 
@@ -48,7 +52,7 @@ docker run -d --name mmavie-speech --gpus all --restart unless-stopped \
 curl -fsS http://<gpu-private-ip>:8100/readyz   # 503 while warming, then 200
 ```
 
-`HF_HUB_OFFLINE=1` guarantees the engine loads only the pinned snapshot and never calls out. If `/readyz` stays 503, `docker logs mmavie-speech` shows which model failed to load.
+With `HF_HUB_OFFLINE=1` the engine never calls out, and resolves each model's `main` through the pinned ref, so it loads exactly the registered snapshot. Re-run `--check` after any manual download into `/opt/mmavie/models`. If `/readyz` stays 503, `docker logs mmavie-speech` shows which model failed to load.
 
 ## 5. Point the Gateway at it
 

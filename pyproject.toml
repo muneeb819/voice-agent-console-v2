@@ -17,6 +17,7 @@ testpaths = [
   "services/audio-engine/tests",
   "services/model-registry/tests",
   "bench/tests",
+  "scripts/tests",
 ]
 # services/speech keeps its own test suite and requirements (run from that directory).
 
