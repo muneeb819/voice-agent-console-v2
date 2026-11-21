@@ -16,6 +16,25 @@ def _extract(request: Request) -> str:
     return request.headers.get("x-api-key", "").strip()
 
 
+def authenticate_ws(settings: ServiceSettings, headers) -> str | None:
+    """Resolve the caller for a WebSocket handshake from its headers, or None if unauthenticated.
+
+    Tokens are accepted only in headers (Authorization / X-API-Key), never in the URL, so
+    they cannot leak into access logs. All MMA-VIE WebSocket clients are server-side.
+    """
+    if settings.auth_disabled:
+        return "anonymous"
+    header = headers.get("authorization", "")
+    scheme, _, value = header.partition(" ")
+    presented = value.strip() if scheme.lower() == "bearer" else headers.get("x-api-key", "").strip()
+    if not presented:
+        return None
+    for secret, name in settings.token_map().items():
+        if hmac.compare_digest(presented.encode(), secret.encode()):
+            return name
+    return None
+
+
 def make_auth_dependency(settings: ServiceSettings):
     """Return a FastAPI dependency that resolves to the authenticated caller name."""
     tokens = settings.token_map() if not settings.auth_disabled else {}

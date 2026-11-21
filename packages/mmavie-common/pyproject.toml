@@ -14,6 +14,7 @@ dependencies = [
   "pydantic-settings==2.7.0",
   "httpx==0.28.1",
   "prometheus-client==0.21.1",
+  "websockets>=13,<18",
 ]
 
 [tool.setuptools.packages.find]

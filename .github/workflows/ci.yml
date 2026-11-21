@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: pip install -e packages/mmavie-common "psycopg[binary]==3.2.3" pytest anyio ruff
+        run: pip install -e packages/mmavie-common "psycopg[binary]==3.2.3" pytest anyio ruff numpy huggingface_hub
       - name: Lint
         run: ruff check .
       - name: Tests (contracts, services, real Postgres migrations)
@@ -68,7 +68,7 @@ jobs:
         run: docker compose up -d --build
       - name: Smoke test (retries while services become ready)
         run: |
-          pip install httpx==0.28.1
+          pip install httpx==0.28.1 "websockets>=13,<18"
           for i in $(seq 1 24); do
             if python scripts/smoke.py; then exit 0; fi
             echo "attempt $i failed; retrying in 5 s"; sleep 5

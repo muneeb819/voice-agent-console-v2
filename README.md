@@ -2,7 +2,7 @@
 
 MMA Digital Labs' self-hosted voice-agent platform. V2 runs speech-to-text, the LLM and text-to-speech on our own infrastructure, so **no external AI inference provider is needed for normal operation**. It is a separate project from [Voice Agent Console V1](https://github.com/muneeb819/Voice-Agent-Console), which stays untouched as the reference and fallback.
 
-**Status:** Phase 1 (foundation). Services run end to end on fake models for development; real models arrive in Phases 2–3. Nothing here is production-ready yet.
+**Status:** Phase 1 done; Phase 2 prepared and waiting for the GPU host. Services run end to end on fake models for development; real models arrive in Phases 2–3. Nothing here is production-ready yet.
 
 ## Layout
 
@@ -16,6 +16,7 @@ services/model-registry  MMA Model Management: models with pinned revision + lic
 services/llm-fake        dev/CI stand-in for the vLLM LLM Engine — never deployed
 console/                 Voice Agent Console V2 UI (Phase 6)
 db/                      PostgreSQL migrations + runner
+bench/                   speech benchmarks (accuracy, latency, concurrency) with recorded runs
 docs/                    ADRs, AWS handoff spec, phase reports
 ```
 
@@ -25,7 +26,7 @@ With Docker:
 
 ```bash
 docker compose up -d --build   # Postgres, migrations, all services, fake LLM + fake speech
-make smoke                     # 17 end-to-end checks
+make smoke                     # 19 end-to-end checks
 ```
 
 Without Docker (needs Python 3.11+ and a PostgreSQL you can reach):
@@ -55,4 +56,5 @@ All local ports bind to `127.0.0.1`. Tokens beginning with `dev-` are for local 
 - [Architecture decisions](docs/adr/)
 - [AWS infrastructure handoff spec](docs/infra-handoff.md)
 - [Phase 1 milestone report](docs/phases/phase-1.md)
+- [Phase 2 GPU runbook](docs/runbooks/phase-2-speech-gpu.md) and [benchmark guide](bench/README.md)
 - [Changelog](CHANGELOG.md)

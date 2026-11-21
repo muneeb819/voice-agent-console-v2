@@ -25,6 +25,8 @@ GW_TOKEN = E("SMOKE_GATEWAY_TOKEN", "dev-console-to-gateway")
 RT_TOKEN = E("SMOKE_RUNTIME_TOKEN", "dev-console-to-runtime")
 RG_TOKEN = E("SMOKE_REGISTRY_TOKEN", "dev-console-to-registry")
 ALIAS = E("SMOKE_LLM_ALIAS", "qwen3-voice")
+STT_ALIAS = E("SMOKE_STT_ALIAS", "whisper-large-v3-turbo")
+TTS_ALIAS = E("SMOKE_TTS_ALIAS", "kokoro-82m")
 
 failures: list[str] = []
 
@@ -94,6 +96,48 @@ def main() -> int:
         calls = r.json()["choices"][0]["message"].get("tool_calls") or []
         expect(calls and calls[0]["function"]["name"] == "transfer_to_live_agent", "tool call missing")
     check("LLM tool call via gateway", tool)
+
+    def stt_stream():
+        import math
+        import struct
+
+        from websockets.sync.client import connect
+        sr = 16000
+        tone = [int(0.3 * 32767 * math.sin(2 * math.pi * 300 * i / sr)) for i in range(sr)]
+        pcm = struct.pack(f"<{3 * sr}h", *([0] * sr + tone + [0] * sr))
+        with connect(GATEWAY.replace("http", "ws", 1) + f"/v1/stream/stt?model={STT_ALIAS}",
+                     additional_headers=gw, open_timeout=5) as ws:
+            ws.send(json.dumps({"sample_rate": sr, "partials": False}))
+            expect(json.loads(ws.recv(timeout=5))["type"] == "ready", "no ready")
+            for i in range(0, len(pcm), 3200):
+                ws.send(pcm[i:i + 3200])
+            ws.send(json.dumps({"type": "flush"}))
+            while True:
+                msg = json.loads(ws.recv(timeout=10))
+                if msg["type"] == "final":
+                    return repr(msg["text"])[:50]
+                expect(msg["type"] != "error", msg.get("message", "error"))
+    check("STT stream via gateway", stt_stream)
+
+    def tts_stream():
+        from websockets.sync.client import connect
+        start = time.perf_counter()
+        with connect(GATEWAY.replace("http", "ws", 1) + f"/v1/stream/tts?model={TTS_ALIAS}",
+                     additional_headers=gw, open_timeout=5) as ws:
+            ws.send(json.dumps({"type": "config", "format": "ulaw", "sample_rate": 8000}))
+            expect(json.loads(ws.recv(timeout=5))["type"] == "configured", "not configured")
+            ws.send(json.dumps({"type": "speak", "id": "s1", "text": "One. Two."}))
+            first, total = None, 0
+            while True:
+                m = ws.recv(timeout=10)
+                if isinstance(m, bytes):
+                    first = first or time.perf_counter() - start
+                    total += len(m)
+                elif json.loads(m)["type"] == "done":
+                    break
+        expect(total > 0, "no audio")
+        return f"{total} bytes ulaw, first audio {1000 * first:.1f} ms"
+    check("TTS stream via gateway", tts_stream)
 
     def validate():
         agent = {"agent_id": "smoke", "version": 1, "name": "Smoke", "persona_prompt": "Be brief.",
