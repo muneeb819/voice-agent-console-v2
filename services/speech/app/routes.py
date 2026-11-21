@@ -258,11 +258,12 @@ async def create_job(
     try:
         await save_upload(file, r.jobs.upload_path(jid), s.max_upload_mb << 20)
     except BaseException:
-        await asyncio.to_thread(r.jobs.store.delete, jid)
+        r.jobs.upload_path(jid).unlink(missing_ok=True)
+        await asyncio.to_thread(r.jobs.store.discard, jid)
         raise
     if not r.jobs.submit(jid):
         r.jobs.upload_path(jid).unlink(missing_ok=True)
-        await asyncio.to_thread(r.jobs.store.delete, jid)
+        await asyncio.to_thread(r.jobs.store.discard, jid)
         raise HTTPException(503, "Job queue full", headers={"Retry-After": "30"})
     return {"id": jid, "status": "queued"}
 

@@ -76,6 +76,11 @@ class JobStore:
             cur = c.execute("DELETE FROM jobs WHERE id=? AND status NOT IN ('queued','running')", (jid,))
             return cur.rowcount > 0
 
+    def discard(self, jid: str) -> None:
+        """Remove a job that was never handed to a worker (upload or enqueue failed), whatever its status."""
+        with self._lock, self._conn() as c:
+            c.execute("DELETE FROM jobs WHERE id=?", (jid,))
+
 
 class JobManager:
     def __init__(self, rt):

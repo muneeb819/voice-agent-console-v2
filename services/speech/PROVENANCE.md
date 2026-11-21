@@ -4,5 +4,6 @@ Copied from `muneeb819/Voice-Agent-Console` → `speech-service/` at commit `13d
 
 Changes in V2 so far:
 - `Dockerfile`: added a CPU-only `dev` target (fake engines) for the local stack and CI.
+- Bug fix: a failed or oversize transcription upload left a job stuck in `queued` (the cleanup delete skips queued jobs). Added `JobStore.discard` for never-started jobs, remove the partial upload, and regression tests. The same bug exists in V1.
 
-Everything else is unchanged. Its 31 tests pass on CPU fakes; the real GPU path (Faster-Whisper on CUDA, Kokoro) has not yet been run in V2 and is the first task of Phase 2. Third-party model licences: see `THIRD_PARTY_NOTICES.md`.
+Everything else is unchanged. Its tests (33, including the regression tests) pass on CPU fakes; the real GPU path (Faster-Whisper on CUDA, Kokoro) has not yet been run in V2 and is the first task of Phase 2. Third-party model licences: see `THIRD_PARTY_NOTICES.md`.

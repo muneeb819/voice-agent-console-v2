@@ -4,6 +4,7 @@ import types
 import time
 
 import numpy as np
+import pytest
 
 from tests.conftest import H, KEY, wav_bytes
 
@@ -348,3 +349,12 @@ def test_clone_requires_consent_and_audits(client, tmp_path):
     vid = voice[6:]
     assert client.delete(f"/v1/voices/{vid}", headers=H).status_code == 204
     assert client.post("/v1/audio/speech", json={"input": "hello", "voice": voice}, headers=H).status_code == 404
+
+
+@pytest.mark.parametrize("payload", [b"", b"x" * ((1 << 20) + 1)], ids=["empty", "oversize"])
+def test_failed_upload_leaves_no_queued_job(client, payload):
+    """Regression (V2 PR #1 review): a rejected upload must not leave a 'queued' row behind."""
+    r = client.post("/v1/jobs/transcriptions", files={"file": ("a.wav", payload, "audio/wav")}, headers=H)
+    assert r.status_code >= 400
+    store = client.app.state.rt.jobs.store
+    assert store.incomplete() == []
