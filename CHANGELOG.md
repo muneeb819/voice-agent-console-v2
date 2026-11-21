@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 — Phase 4 start: runtime policy engine (2026-11-22)
+
+### Added
+- `mmavie_runtime.policy.PolicyEngine`: campaign rules enforced in code — calling window in the lead's time zone (unknown zone fails closed), stop/DNC phrases end the call with a DNC disposition, output filter on every sentence before TTS (campaign rules plus always-on built-ins blocking requests for SSN, card, bank, Medicare numbers and passwords), caller facts accepted only with a quote the caller really said, transfer gate on required facts plus verified consent, disposition allowlist, call-length wrap-up and fixed closing, verbatim disclosures. Every verdict converts to a `PolicyDecision` session event.
+- `record_caller_fact` added to the built-in functions.
+
 ## 0.2.0 — Phase 2 preparation, before GPU (2026-11-22)
 
 ### Added
