@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    name: Lint, contracts, services, migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mmavie_test
+          POSTGRES_USER: mmavie
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mmavie -d mmavie_test" --health-interval 5s --health-retries 20
+    env:
+      MMAVIE_TEST_DATABASE_URL: postgresql://mmavie:ci-only-password@127.0.0.1:5432/mmavie_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e packages/mmavie-common "psycopg[binary]==3.2.3" pytest anyio ruff
+      - name: Lint
+        run: ruff check .
+      - name: Tests (contracts, services, real Postgres migrations)
+        run: python -m pytest
+
+  speech-service:
+    name: Speech service (CPU fakes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/speech
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements-test.txt
+      - run: python -m pytest -q
+
+  images-and-smoke:
+    name: Build images, run stack, smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [lint-and-test]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start the dev stack
+        run: docker compose up -d --build
+      - name: Smoke test (retries while services become ready)
+        run: |
+          pip install httpx==0.28.1
+          for i in $(seq 1 24); do
+            if python scripts/smoke.py; then exit 0; fi
+            echo "attempt $i failed; retrying in 5 s"; sleep 5
+          done
+          exit 1
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

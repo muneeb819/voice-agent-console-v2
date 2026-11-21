@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: mmavie
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["gateway:8000", "agent-runtime:8000", "audio-engine:8000", "model-registry:8000", "llm-fake:8000", "speech:8000"]

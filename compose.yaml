@@ -1,0 +1,110 @@
+# MMA-VIE local development stack — CPU only, fake LLM and fake speech engines.
+#
+#   docker compose up -d --build        # start everything
+#   make smoke                          # check every service is healthy and a chat turn routes
+#   docker compose --profile obs up -d  # add Prometheus on 127.0.0.1:9090
+#
+# Every port is bound to 127.0.0.1. The tokens below start with "dev-": every service
+# refuses them when MMAVIE_ENVIRONMENT is staging or prod. Real deployments read tokens
+# from AWS Secrets Manager (see docs/infra-handoff.md).
+
+x-service: &service
+  build: &build
+    context: .
+    dockerfile: docker/service.Dockerfile
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  read_only: true
+  tmpfs: ["/tmp"]
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mmavie
+      POSTGRES_USER: mmavie
+      POSTGRES_PASSWORD: dev-postgres-password
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mmavie -d mmavie"]
+      interval: 5s
+      retries: 20
+
+  migrate:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_DIR: services/model-registry, MODULE: mmavie_registry, EXTRA_PIP: "psycopg[binary]==3.2.3" } }
+    restart: "no"
+    command: ["python", "db/migrate.py"]
+    environment:
+      MMAVIE_DATABASE_URL: postgresql://mmavie:dev-postgres-password@postgres:5432/mmavie
+    depends_on: { postgres: { condition: service_healthy } }
+
+  llm-fake:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_DIR: services/llm-fake, MODULE: mmavie_llm_fake } }
+    environment:
+      MMAVIE_SERVICE_NAME: llm-fake
+      MMAVIE_SERVICE_TOKENS: gateway:dev-gateway-to-llm
+      MMAVIE_FAKE_TOKEN_DELAY_MS: "20"
+
+  speech:
+    build: { context: services/speech, target: dev }
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      SPEECH_BACKEND: fake
+      SPEECH_API_KEYS: gateway:dev-gateway-to-speech,runtime:dev-runtime-to-speech
+    ports: ["127.0.0.1:8001:8000"]
+    volumes: [speechdata:/data]
+
+  gateway:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_DIR: services/gateway, MODULE: mmavie_gateway } }
+    environment:
+      MMAVIE_SERVICE_NAME: gateway
+      MMAVIE_SERVICE_TOKENS: console:dev-console-to-gateway,runtime:dev-runtime-to-gateway
+      MMAVIE_GATEWAY_ROUTES_FILE: config/gateway.routes.dev.json
+      LLM_UPSTREAM_TOKEN: dev-gateway-to-llm
+      SPEECH_UPSTREAM_TOKEN: dev-gateway-to-speech
+    ports: ["127.0.0.1:8080:8000"]
+    depends_on: [llm-fake, speech]
+
+  agent-runtime:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_DIR: services/agent-runtime, MODULE: mmavie_runtime } }
+    environment:
+      MMAVIE_SERVICE_NAME: agent-runtime
+      MMAVIE_SERVICE_TOKENS: console:dev-console-to-runtime
+      MMAVIE_GATEWAY_URL: http://gateway:8000
+    ports: ["127.0.0.1:8081:8000"]
+    depends_on: [gateway]
+
+  audio-engine:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_DIR: services/audio-engine, MODULE: mmavie_audio } }
+    environment:
+      MMAVIE_SERVICE_NAME: audio-engine
+      MMAVIE_SERVICE_TOKENS: console:dev-console-to-audio
+      MMAVIE_PBX_ALLOWED_CIDRS: 127.0.0.1/32
+    ports: ["127.0.0.1:8082:8000"]
+
+  model-registry:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_DIR: services/model-registry, MODULE: mmavie_registry, EXTRA_PIP: "psycopg[binary]==3.2.3" } }
+    environment:
+      MMAVIE_SERVICE_NAME: model-registry
+      MMAVIE_SERVICE_TOKENS: console:dev-console-to-registry
+      MMAVIE_DATABASE_URL: postgresql://mmavie:dev-postgres-password@postgres:5432/mmavie
+    ports: ["127.0.0.1:8083:8000"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles: ["obs"]
+    volumes: ["./config/prometheus.dev.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["127.0.0.1:9090:9090"]
+
+volumes:
+  pgdata:
+  speechdata:

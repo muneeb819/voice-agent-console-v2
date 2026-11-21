@@ -1,0 +1,35 @@
+# Workspace tooling only. Each service is deployed from its own Dockerfile.
+[tool.pytest.ini_options]
+addopts = "-q --import-mode=importlib"
+pythonpath = [
+  "packages/mmavie-common/src",
+  "services/gateway",
+  "services/llm-fake",
+  "services/agent-runtime",
+  "services/audio-engine",
+  "services/model-registry",
+]
+testpaths = [
+  "packages/mmavie-common/tests",
+  "services/gateway/tests",
+  "services/llm-fake/tests",
+  "services/agent-runtime/tests",
+  "services/audio-engine/tests",
+  "services/model-registry/tests",
+]
+# services/speech keeps its own test suite and requirements (run from that directory).
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+extend-exclude = ["services/speech"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC"]
+ignore = ["S101", "S603", "B008", "UP007"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S105", "S106", "S108"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mmavie_common", "mmavie_gateway", "mmavie_llm_fake", "mmavie_runtime", "mmavie_audio", "mmavie_registry"]
