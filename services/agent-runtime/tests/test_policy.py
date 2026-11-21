@@ -129,3 +129,44 @@ def test_verdict_becomes_session_event():
     v = engine().filter_output("What's your SSN?")
     ev = v.to_event("sess-12345678", 3)
     assert ev.type == "policy_decision" and ev.action == "block" and ev.turn == 3
+
+
+# ------------------------------------------------------------ review findings (PR #3)
+def test_fact_value_must_match_the_number_the_caller_said():
+    e, s = gate_engine(), CallState()
+    e.on_caller_turn(s, "I'm 64 years old.")
+    assert not e.record_caller_fact(s, "age_band", "70-79", "I'm 64").allowed
+    assert e.record_caller_fact(s, "age_band", "60-69", "I'm 64").allowed
+
+
+def test_consent_rejected_when_the_caller_turn_is_negative():
+    e, s = gate_engine(), CallState()
+    e.on_caller_turn(s, "No, don't connect me to anyone.")
+    assert not e.record_caller_fact(s, CONSENT_FACT, "yes", "connect me").allowed
+    e.on_caller_turn(s, "Okay, connect me.")
+    assert e.record_caller_fact(s, CONSENT_FACT, "yes", "connect me").allowed
+
+
+def test_free_text_fact_must_use_the_callers_words():
+    e, s = gate_engine(), CallState()
+    e.on_caller_turn(s, "I have Part A only.")
+    assert not e.record_caller_fact(s, "medicare_parts", "Part A and Part B", "I have Part A").allowed
+    assert e.record_caller_fact(s, "medicare_parts", "Part A", "I have Part A").allowed
+
+
+def test_dnc_disposition_cannot_be_overwritten():
+    e, s = engine(), CallState()
+    e.on_caller_turn(s, "Stop calling me.")
+    v = e.authorize_tool(s, "set_disposition", {"disposition": "NI"})
+    assert not v.allowed and s.disposition == "DNC"
+    assert e.authorize_tool(s, "set_disposition", {"disposition": "DNC"}).allowed
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("I'm 64", [64]), ("seventy-two", [72]), ("I turned sixty five in May", [65]),
+    ("one hundred and five years", [105]), ("twenty", [20]), ("thirteen and nine", [13, 9]),
+    ("no numbers here", []),
+])
+def test_numbers_in_spoken_and_digit_forms(text, expected):
+    from mmavie_runtime.policy import numbers_in
+    assert numbers_in(text) == expected
