@@ -48,7 +48,7 @@ class FunctionSpec(BaseModel):
     builtin: bool = False
 
 
-BUILTIN_FUNCTIONS = {"transfer_to_live_agent", "set_disposition", "add_to_dnc", "end_call"}
+BUILTIN_FUNCTIONS = {"transfer_to_live_agent", "set_disposition", "add_to_dnc", "end_call", "record_caller_fact"}
 
 
 class AgentVersion(BaseModel):
